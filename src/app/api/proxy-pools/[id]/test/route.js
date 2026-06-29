@@ -11,8 +11,8 @@ async function testVercelRelay(relayUrl, timeoutMs = 10000) {
     const res = await undiciFetch(relayUrl, {
       method: "GET",
       headers: {
-        "x-relay-target": "https://httpbin.org",
-        "x-relay-path": "/get",
+        "x-relay-target": "https://example.com",
+        "x-relay-path": "/",
       },
       signal: controller.signal,
     });
