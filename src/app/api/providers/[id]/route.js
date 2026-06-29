@@ -149,6 +149,9 @@ export async function PUT(request, { params }) {
       if (proxyPoolResult.hasProxyPoolField) {
         if (proxyPoolResult.proxyPoolId === null) {
           delete updateData.providerSpecificData.proxyPoolId;
+          updateData.providerSpecificData.connectionProxyEnabled = false;
+          updateData.providerSpecificData.connectionProxyUrl = "";
+          updateData.providerSpecificData.connectionNoProxy = "";
         } else {
           updateData.providerSpecificData.proxyPoolId = proxyPoolResult.proxyPoolId;
         }

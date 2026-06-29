@@ -210,7 +210,7 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
       <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
         <div className="grid flex-1 grid-cols-3 gap-1 sm:flex sm:flex-none">
           {/* Proxy button with inline dropdown */}
-          {(proxyPools || []).length > 0 && (
+          {((proxyPools || []).length > 0 || hasAnyProxy) && (
             <div className="relative" ref={proxyDropdownRef}>
               <button
                 onClick={() => setShowProxyDropdown((v) => !v)}
