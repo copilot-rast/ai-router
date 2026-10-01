@@ -28,15 +28,15 @@ export const CODEX_CONFIG = { ...PROVIDER_OAUTH["codex"] };
 // clientId/clientSecret from GOOGLE_OAUTH_CLIENT (shared.js) — not stored in registry
 export const GEMINI_CONFIG = { ...GOOGLE_OAUTH_CLIENT, ...PROVIDER_OAUTH["gemini-cli"] };
 
-// Qwen OAuth Configuration (Device Code Flow with PKCE)
-export const QWEN_CONFIG = { ...PROVIDER_OAUTH["qwen"] };
-
 // Qoder OAuth Configuration (Device Token Flow with PKCE).
 // Device tokens are long-lived (~30 days for access, ~360 for refresh).
 // The upstream refresh endpoint at center.qoder.sh returns 403 for our
 // flow — we accept that and surface it to the user as "re-login" instead
 // of attempting to silently rotate.
 export const QODER_CONFIG = { ...PROVIDER_OAUTH["qoder"] };
+
+// Qoder CN (qoder.com.cn) — same device flow as intl Qoder, CN endpoints.
+export const QODER_CN_CONFIG = { ...PROVIDER_OAUTH["qoder-cn"] };
 
 // iFlow OAuth Configuration (Authorization Code)
 export const IFLOW_CONFIG = { ...PROVIDER_OAUTH["iflow"] };
@@ -127,12 +127,31 @@ export const KIMCHI_CONFIG = { ...PROVIDER_OAUTH["kimchi"] };
 // Endpoint: cli-chat-proxy.grok.com — same client_id as xai, different flow + scopes
 export const GROK_CLI_CONFIG = { ...PROVIDER_OAUTH["grok-cli"] };
 
+// Muse — subscription device code flow to auth.meta.com, no refresh
+// (Meta rejects refresh_token grants; the minted Model API key never expires).
+export const MUSE_CONFIG = { ...PROVIDER_OAUTH["muse"] };
+
 // Trae (ByteDance marscode) OAuth — authorization_code flow with local callback.
 //   1) POST GetLoginGuidance {loginTraceID} → {Result.LoginHost}
 //   2) Browser opens ${loginHost}/authorization?client_id=...&login_trace_id=...&auth_callback_url=${cb}
 //   3) Redirect → ${cb}?refreshToken=...&loginHost=...&isRedirect=true
 //   4) POST ExchangeToken {ClientID, RefreshToken, ClientSecret:"-"} → {Result.AccessToken, ExpiresAt}
 //   5) POST GetUserInfo (x-cloudide-token) → email/name
+// Xiaomi MiMo Desktop OAuth — custom ECDH encrypted-callback flow (NOT standard OAuth2).
+//   1) Client generates X25519 keypair
+//   2) Browser opens ${platformUrl}/authorize?pk=<pubkey>&redirect_uri=http://localhost:<port>/&kn=mimocode&key_name=...
+//   3) Redirect → http://localhost:<port>/?u=<base64 encrypted payload>
+//   4) Decrypt: ECDH(shared) → SHA256 → AES-256-GCM
+//      Layout: [12-byte nonce][32-byte ephemeral pubkey][ciphertext][16-byte GCM tag]
+//   5) Result JSON: { uid, sk, url }
+export const XIAOMI_MIMO_CONFIG = {
+  platformUrl: process.env.MIMO_PLATFORM_URL || "https://platform.xiaomimimo.com",
+  defaultBaseUrl: "https://api.xiaomimimo.com/v1",
+  kn: "mimocode",
+  callbackPath: "/",
+  timeoutMs: 300000, // 5 minutes
+};
+
 export const TRAE_CONFIG = {
   clientId: "ono9krqynydwx5",
   clientSecret: "-",
@@ -186,6 +205,13 @@ export const WINDSURF_CONFIG = {
   oauthTimeoutMs: 600_000,
 };
 
+// GLM Coding (Z.ai) OAuth — ZCode CLI polling flow (NOT PKCE): init mints a
+// one-off poll token, the browser opens the server-generated authorize_url,
+// poll/ready returns the tokens. The Z.AI OAuth token is then exchanged for a
+// platform business JWT and finally a long-lived coding-plan API key (no
+// refresh grant).
+export const GLM_OAUTH_CONFIG = { ...PROVIDER_OAUTH["glm"] };
+
 // Zed hosted LLM aggregator — RSA keypair native-app auth (NOT OAuth).
 // Client generates ephemeral RSA-2048 keypair; user signs in at zed.dev/native_app_signin;
 // Zed redirects to local callback with access_token RSA-encrypted against our public key.
@@ -206,8 +232,8 @@ export const PROVIDERS = {
   CLAUDE: "claude",
   CODEX: "codex",
   GEMINI: "gemini-cli",
-  QWEN: "qwen",
   QODER: "qoder",
+  QODER_CN: "qoder-cn",
   IFLOW: "iflow",
   ANTIGRAVITY: "antigravity",
   OPENAI: "openai",
@@ -226,5 +252,6 @@ export const PROVIDERS = {
   GROK_CLI: "grok-cli",
   TRAE: "trae",
   WINDSURF: "windsurf",
+  GLM: "glm",
   ZED: "zed",
 };

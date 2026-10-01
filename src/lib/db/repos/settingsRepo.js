@@ -17,15 +17,29 @@ const DEFAULT_SETTINGS = {
   comboStrategy: "fallback",
   comboStickyRoundRobinLimit: 1,
   comboStrategies: {},
+  capacityAdapter: {
+    vision: { enabled: true, roundRobin: false, models: [] },
+    pdf: { enabled: false, roundRobin: false, models: [] },
+    audioInput: { enabled: true, roundRobin: false, models: [] },
+    videoInput: { enabled: false, roundRobin: false, models: [] },
+  },
   requireLogin: true,
+  requireApiKey: true,
   tunnelDashboardAccess: true,
   authMode: "password",
+  ssoType: "oidc",
   oidcIssuerUrl: "",
   oidcClientId: "",
   oidcClientSecret: "",
   oidcScopes: "openid profile email",
   oidcLoginLabel: "Sign in with OIDC",
-  enableObservability: true,
+  samlEntryPoint: "",
+  samlIssuer: "urn:9router:sp",
+  samlCert: "",
+  samlLoginLabel: "Sign in with SAML SSO",
+  samlAttributeEmail: "email",
+  samlAttributeName: "name",
+  enableObservability: false,
   observabilityMaxRecords: 1000,
   observabilityBatchSize: 20,
   observabilityFlushIntervalMs: 5000,
@@ -39,6 +53,7 @@ const DEFAULT_SETTINGS = {
   headroomEnabled: false,
   headroomUrl: DEFAULT_HEADROOM_URL,
   headroomCompressUserMessages: false,
+  headroomTimeoutMs: 3000,
   cavemanEnabled: false,
   cavemanLevel: "full",
   ponytailEnabled: false,
@@ -47,6 +62,8 @@ const DEFAULT_SETTINGS = {
   pxpipeAutoInstall: true,
   pxpipeMinChars: 25000,
   pxpipeTimeoutMs: 15000,
+  // Per-provider user header overrides applied at dispatch: { [providerId]: { headers: {..} } }
+  providerOverrides: {},
 };
 
 async function readRaw() {
@@ -55,7 +72,8 @@ async function readRaw() {
   return row ? parseJson(row.data, {}) : {};
 }
 
-function mergeWithDefaults(raw) {
+// Merge raw settings with defaults; backward-compat for missing keys
+export function mergeWithDefaults(raw) {
   const merged = { ...DEFAULT_SETTINGS, ...(raw || {}) };
   for (const [key, defVal] of Object.entries(DEFAULT_SETTINGS)) {
     if (merged[key] === undefined) {
@@ -67,6 +85,16 @@ function mergeWithDefaults(raw) {
         merged[key] = true;
       } else {
         merged[key] = defVal;
+      }
+    }
+  }
+  if (merged.capacityAdapter && typeof merged.capacityAdapter === "object") {
+    for (const capKey of Object.keys(merged.capacityAdapter)) {
+      const entry = merged.capacityAdapter[capKey];
+      if (Array.isArray(entry?.models)) {
+        entry.models = entry.models.map((m) =>
+          m === "oc/mimo-v2.5-free" ? "oc/mimo-v2.6-flash-free" : m
+        );
       }
     }
   }
@@ -87,7 +115,7 @@ export async function updateSettings(updates) {
     next = { ...current, ...updates };
     await db.run(
       `INSERT INTO settings(id, data) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`,
-      [stringifyJson(next)]
+      [stringifyJson(next)],
     );
   });
   return mergeWithDefaults(next);
