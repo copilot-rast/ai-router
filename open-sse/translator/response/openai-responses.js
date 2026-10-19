@@ -508,6 +508,21 @@ function computeFinishReason(state) {
  * This is for when Codex returns data and we need to send it to an OpenAI-compatible client
  */
 export function openaiResponsesToOpenAIResponse(chunk, state) {
+  const out = translateResponsesChunkToChat(chunk, state);
+  if (!out) return out;
+  // OpenAI Chat Completions streams announce `delta.role: "assistant"` on the first
+  // chunk. Strict consumers (the openai SDK's stream accumulator, LangChain) build the
+  // message from it and fail with role=None when it is absent.
+  for (const c of Array.isArray(out) ? out : [out]) {
+    const delta = c?.choices?.[0]?.delta;
+    if (!delta || state.chatRoleSent) continue;
+    if (delta.role === undefined) delta.role = ROLE.ASSISTANT;
+    state.chatRoleSent = true;
+  }
+  return out;
+}
+
+function translateResponsesChunkToChat(chunk, state) {
   if (!chunk) {
     // Flush: send final chunk with finish_reason
     if (state.finishReasonSent || !state.started) return null;
